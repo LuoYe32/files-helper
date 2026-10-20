@@ -57,6 +57,18 @@ def json_guardrail(model: type[BaseModel], suffixes: set[str], facts: Facts, sel
     return check
 
 
+def schema_guardrail(model: type[BaseModel]):
+    """Require valid JSON matching `model`."""
+
+    def check(output: TaskOutput):
+        parsed, error = _parse(model, output.raw)
+        if parsed is None:
+            return False, error
+        return True, parsed.model_dump_json(indent=2)
+
+    return check
+
+
 def route_guardrail(selection: Selection):
     """Require a valid file selection that names only existing files; stores it in `selection`."""
 

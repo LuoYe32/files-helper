@@ -17,8 +17,10 @@ multiagent/
     runner.py              запуск, токены, стоимость
     compare.py             сравнение моделей
   crew/                    команда агентов
-    agents.py              роли агентов и модель
+    agents.py              роли агентов (маршрутизатор, аналитики, автор, рецензент)
+    prompts.py             тексты поручений
     builder.py             задачи и сборка команды
+    review.py              цикл «рецензент — автор»
   routing/                 выбор файлов под вопрос
     catalog.py             карточки файлов для маршрутизатора
     selection.py           выбранные файлы
@@ -27,6 +29,7 @@ multiagent/
     report.py              разделы и графики отчёта, проверка чисел
     facts.py               числа аналитиков и сверка с отчётом
   tools/                   инструменты агентов
+    recording.py           передача чисел из инструментов в проверку отчёта
     files.py               чтение документов (только data/)
     tables.py              анализ таблиц (pandas)
     charts.py              графики (только output/charts/)
@@ -43,6 +46,7 @@ uv sync
 .venv/bin/python main.py --parallel      # аналитики работают одновременно
 .venv/bin/python main.py --ask "Какие города приносят больше выручки?"   # один свой вопрос
 .venv/bin/python main.py --ask "..." --files sales_2026.xlsx strategy_2026.md   # вручную выбрать файлы
+.venv/bin/python main.py --reviews 0     # без рецензента
 .venv/bin/python main.py -i              # диалог: вводите вопросы по одному, ответы в output/answer_N.md
 .venv/bin/python main.py --model anthropic/claude-sonnet-5-5
 .venv/bin/python -m multiagent.compare # Haiku 5.5 и Sonnet 5.5 на одних данных (тратит токены)
@@ -51,11 +55,20 @@ uv sync
 В конце каждого запуска печатаются время, токены и оценка стоимости (тарифы в `multiagent/config.py`).
 Модель по умолчанию задаётся в `.env` (`MODEL`).
 
+## Как работают агенты
+
+Порядок шагов зашит в коде: маршрутизатор (только с вопросом) → аналитики документов и таблиц → автор.
+Дальше цикл рецензии (`--reviews N`, по умолчанию 1, `0` отключает): рецензент ищет проблемы в отчёте,
+автор исправляет, пока отчёт не примут или не кончатся круги. Аналитики могут задавать вопросы друг другу
+(делегирование; при `--parallel` отключено). Числа из отчёта сверяются с выводом инструментов и
+результатами аналитиков.
+
 ## Что показываем
 
 | Тема | Где |
 |---|---|
 | Роли агентов и инструменты | `multiagent/crew/agents.py`, `multiagent/tools/` |
+| Мультиагентность: делегирование, рецензент | `multiagent/crew/review.py`, `multiagent/crew/agents.py` |
 | Задачи, зависимости, параллельный запуск | `multiagent/crew/builder.py` (`context`, `async_execution`) |
 | Структурированный вывод + guardrails с повтором | `multiagent/schemas.py`, `multiagent/guardrails/` |
 | Графики (единственный инструмент записи, только в `output/charts/`) | `multiagent/tools/charts.py` |

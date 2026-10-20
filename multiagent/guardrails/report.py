@@ -6,6 +6,7 @@ from crewai import TaskOutput
 from multiagent.config import OUTPUT_DIR
 from multiagent.guardrails.facts import Facts
 
+UNVERIFIED_SECTION = "\n\n## Непроверенные числа"
 REQUIRED_HEADINGS = ("## Резюме", "## Документы", "## Таблицы", "## Выводы")
 
 
@@ -28,7 +29,7 @@ def report_guardrail(facts: Facts):
         if unverified:
             print(f"[fact-check] numbers not found in analyst results: {unverified}")
             text += (
-                "\n\n## Непроверенные числа\n\n"
+                f"{UNVERIFIED_SECTION}\n\n"
                 "Эти числа не найдены в результатах аналитиков, проверьте их вручную: " + ", ".join(unverified)
             )
         return True, text

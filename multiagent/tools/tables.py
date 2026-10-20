@@ -2,6 +2,7 @@ import pandas as pd
 from crewai.tools import tool
 
 from multiagent.tools.files import _safe_path
+from multiagent.tools.recording import recorded
 
 
 def _load(file_name: str, sheet: str = "") -> pd.DataFrame:
@@ -37,6 +38,7 @@ def _missing_column(df: pd.DataFrame, *columns: str) -> str | None:
 
 
 @tool("describe_table")
+@recorded
 def describe_table(file_name: str, sheet: str = "") -> str:
     """Describe a table: sheets (xlsx), size, column types, first rows, numeric statistics, missing values.
     For xlsx call it once per sheet."""
@@ -53,6 +55,7 @@ def describe_table(file_name: str, sheet: str = "") -> str:
 
 
 @tool("group_table")
+@recorded
 def group_table(file_name: str, group_by: str, value_column: str, agg: str = "sum", sheet: str = "") -> str:
     """Group by `group_by` and aggregate `value_column` with agg: sum, mean, count, min or max."""
     if agg not in {"sum", "mean", "count", "min", "max"}:
@@ -64,6 +67,7 @@ def group_table(file_name: str, group_by: str, value_column: str, agg: str = "su
 
 
 @tool("find_outliers")
+@recorded
 def find_outliers(file_name: str, column: str, sheet: str = "") -> str:
     """Find outlier rows in a numeric column using the 1.5*IQR rule."""
     df = _load(file_name, sheet)
@@ -74,6 +78,7 @@ def find_outliers(file_name: str, column: str, sheet: str = "") -> str:
 
 
 @tool("summary_without_outliers")
+@recorded
 def summary_without_outliers(file_name: str, column: str, sheet: str = "") -> str:
     """Sum, mean and median of a numeric column, with all values and without 1.5*IQR outliers."""
     df = _load(file_name, sheet)
@@ -89,6 +94,7 @@ def summary_without_outliers(file_name: str, column: str, sheet: str = "") -> st
 
 
 @tool("data_quality")
+@recorded
 def data_quality(file_name: str, sheet: str = "") -> str:
     """Check data quality: duplicate rows, duplicate values in the first column (likely an id),
     missing values per column and negative numbers."""

@@ -9,6 +9,8 @@ def parse_numbers(text: str) -> list[float]:
 
 
 def _is_significant(raw: str, value: float) -> bool:
+    if re.fullmatch(r"(0?[1-9]|[12]\d|3[01])\.(0[1-9]|1[0-2])", raw):
+        return False
     has_fraction = bool(re.search(r"[.,]\d", raw))
     is_year = not has_fraction and 1900 <= value <= 2100
     return not is_year and (has_fraction or value >= 1000)
@@ -33,3 +35,17 @@ class Facts:
             if not any(math.isclose(value, known, rel_tol=0.005, abs_tol=0.01) for known in self.numbers):
                 missing.append(raw)
         return list(dict.fromkeys(missing))
+
+
+_active: Facts | None = None
+
+
+def activate(facts: Facts) -> None:
+    """Make `facts` collect the output of every recorded tool until the next call."""
+    global _active
+    _active = facts
+
+
+def record(text: str) -> None:
+    if _active is not None:
+        _active.add(text)

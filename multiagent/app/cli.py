@@ -21,7 +21,15 @@ def interactive(args: argparse.Namespace) -> None:
         if not request:
             break
         output = f"output/answer_{number}.md"
-        stats = run(args.model, output, args.parallel, verbose=not args.quiet, request=request, files=args.files)
+        stats = run(
+            args.model,
+            output,
+            args.parallel,
+            verbose=not args.quiet,
+            request=request,
+            files=args.files,
+            reviews=args.reviews,
+        )
         print(f"\n{Path(output).read_text(encoding='utf-8')}\n\n{stats.line()}")
         number += 1
 
@@ -37,6 +45,7 @@ def main() -> None:
     parser.add_argument("--ask", help="один вопрос по файлам; без него строится общий отчёт")
     parser.add_argument("-i", "--interactive", action="store_true", help="диалог: вводите вопросы по одному")
     parser.add_argument("--files", nargs="+", metavar="FILE", help="обработать только эти файлы из data/ (без маршрутизатора)")
+    parser.add_argument("--reviews", type=int, default=1, help="кругов рецензии и доработки (0 — без рецензента)")
     parser.add_argument("--quiet", action="store_true", help="не печатать подробный лог агентов")
     parser.add_argument("--output", default="output/report.md")
     args = parser.parse_args()
@@ -49,7 +58,15 @@ def main() -> None:
         interactive(args)
         return
 
-    stats = run(args.model, args.output, args.parallel, verbose=not args.quiet, request=args.ask, files=args.files)
+    stats = run(
+        args.model,
+        args.output,
+        args.parallel,
+        verbose=not args.quiet,
+        request=args.ask,
+        files=args.files,
+        reviews=args.reviews,
+    )
     print(f"\n=== Готово: {stats.report_file} ===")
     print(stats.line())
 

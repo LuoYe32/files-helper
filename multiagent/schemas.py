@@ -37,3 +37,8 @@ class FileChoice(BaseModel):
 
 class RouteResult(BaseModel):
     files: list[FileChoice] = Field(min_length=1)
+
+
+class ReviewResult(BaseModel):
+    approved: bool = Field(description="true, если серьёзных замечаний нет")
+    issues: list[str] = Field(default_factory=list, description="Конкретные замечания к отчёту")

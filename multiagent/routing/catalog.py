@@ -1,4 +1,5 @@
 import pandas as pd
+from crewai.tools import tool
 
 from multiagent.config import DATA_DIR, TABLE_SUFFIXES, TEXT_SUFFIXES
 from multiagent.tools.files import extract_text
@@ -30,3 +31,9 @@ def build_catalog() -> str:
         if path.is_file() and path.suffix.lower() in TEXT_SUFFIXES | TABLE_SUFFIXES:
             lines.append(f"- {path.name}: {_preview(path)}")
     return "\n".join(lines)
+
+
+@tool("file_catalog")
+def file_catalog() -> str:
+    """Cards of all files in data/: type, text preview or sheets and columns. Use it to choose files."""
+    return build_catalog()

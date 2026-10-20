@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass
 
 from multiagent.config import DEFAULT_MODEL, PRICES
-from multiagent.crew import build_crew
+from multiagent.crew import build_pipeline, review_loop
 
 
 @dataclass
@@ -38,15 +38,24 @@ def run(
     verbose: bool = True,
     request: str | None = None,
     files: list[str] | None = None,
+    reviews: int = 1,
 ) -> RunStats:
-    """Run the crew once and return timing, token usage and estimated cost."""
+    """Run the agents once and return timing, token usage and estimated cost.
+
+    After the report is written, the reviewer and the writer iterate for up to `reviews` rounds.
+    """
     model = model or os.getenv("MODEL", DEFAULT_MODEL)
-    crew = build_crew(
+    started = time.perf_counter()
+
+    pipeline = build_pipeline(
         model=model, output_file=output_file, parallel=parallel, verbose=verbose, request=request, files=files
     )
-    started = time.perf_counter()
-    result = crew.kickoff()
+    result = pipeline.crew.kickoff()
     usage = result.token_usage
+    if reviews:
+        evidence = "\n\n".join(task.raw for task in result.tasks_output[:-1])
+        usage.add_usage_metrics(review_loop(model, output_file, evidence, pipeline.facts, request, reviews, verbose))
+
     return RunStats(
         model=model,
         seconds=time.perf_counter() - started,
