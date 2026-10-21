@@ -4,14 +4,31 @@ from crewai import Agent, Crew, Process, Task
 from crewai.types.usage_metrics import UsageMetrics
 
 from multiagent.crew.agents import build_agents, make_llm
-from multiagent.crew.prompts import REPORT_FORMAT, REVIEW_TASK
+from multiagent.crew.prompts import FOLLOWUP_TASK, REPORT_FORMAT, REVIEW_TASK
 from multiagent.guardrails import UNVERIFIED_SECTION, Facts, report_guardrail, schema_guardrail, schema_hint
-from multiagent.schemas import ReviewResult
+from multiagent.schemas import FollowUpResult, ReviewResult
+
+MAX_ISSUES = 5
 
 
 def _kickoff(agent: Agent, task: Task, verbose: bool) -> tuple[str, UsageMetrics]:
     result = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=verbose).kickoff()
     return result.raw, result.token_usage
+
+
+def _follow_up(agent: Agent, data_requests: list[str], verbose: bool, facts: Facts) -> tuple[str, UsageMetrics]:
+    """Ask the table analyst to compute data that the reviewer found missing; its numbers count as verified."""
+    listing = "\n".join(f"- {item}" for item in data_requests)
+    task = Task(
+        description=f"{FOLLOWUP_TASK}\n\nЗапросы:\n{listing}",
+        expected_output=f"Только JSON без пояснений по схеме: {schema_hint(FollowUpResult)}",
+        agent=agent,
+        guardrail=schema_guardrail(FollowUpResult),
+        guardrail_max_retries=2,
+    )
+    raw, used = _kickoff(agent, task, verbose)
+    facts.add(raw)
+    return raw, used
 
 
 def review_loop(
@@ -22,13 +39,16 @@ def review_loop(
     request: str | None,
     rounds: int,
     verbose: bool,
+    followups: int = 1,
 ) -> UsageMetrics:
     """Let the reviewer criticise the report and the writer fix it, until approved or out of rounds.
 
     The number of rounds depends on the reviewer's verdict, so this is a feedback loop between agents,
-    not a fixed step. Returns the token usage of all review and revision calls.
+    not a fixed step. If the reviewer asks for missing table data, the table analyst computes it (at most
+    `followups` times per run) and the writer receives it. Returns the token usage of all calls.
     """
     usage = UsageMetrics()
+    followups_left = followups
     for round_no in range(1, rounds + 1):
         agents = build_agents(make_llm(model), verbose=verbose)
         report = Path(report_path).read_text(encoding="utf-8").split(UNVERIFIED_SECTION)[0].rstrip()
@@ -47,20 +67,30 @@ def review_loop(
         raw, used = _kickoff(agents["reviewer"], review, verbose)
         usage.add_usage_metrics(used)
         verdict = ReviewResult.model_validate_json(raw)
+        data_requests = verdict.data_requests if followups_left else []
 
-        if verdict.approved or not verdict.issues:
+        if verdict.approved or not (verdict.issues or data_requests):
             print(f"[review] круг {round_no}: отчёт принят")
             break
-        print(f"[review] круг {round_no}: замечаний {len(verdict.issues)}")
+        print(f"[review] круг {round_no}: замечаний {len(verdict.issues)}, запросов данных {len(data_requests)}")
         for issue in verdict.issues:
             print(f"[review]   - {issue}")
 
-        issues = "\n".join(f"- {issue}" for issue in verdict.issues)
+        issues = list(verdict.issues[:MAX_ISSUES])
+        if data_requests:
+            followups_left -= 1
+            for item in data_requests:
+                print(f"[review]   ? {item}")
+            extra, used = _follow_up(agents["table"], data_requests, verbose, facts)
+            usage.add_usage_metrics(used)
+            evidence += f"\n\n<followup>\n{extra}\n</followup>"
+            issues += [f"Добавь в отчёт данные по запросу: {item}" for item in data_requests]
+        issues_text = "\n".join(f"- {issue}" for issue in issues)
         revise = Task(
             description=(
                 "Исправь отчёт с учётом замечаний рецензента. Меняй только то, что требуется замечаниями, "
                 "и не добавляй фактов, которых нет в данных аналитиков. Верни отчёт целиком.\n\n"
-                f"{question}<issues>\n{issues}\n</issues>\n\n"
+                f"{question}<issues>\n{issues_text}\n</issues>\n\n"
                 f"<evidence>\n{evidence}\n</evidence>\n\n<report>\n{report}\n</report>"
             ),
             expected_output=REPORT_FORMAT,

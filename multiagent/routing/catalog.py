@@ -1,7 +1,7 @@
 import pandas as pd
 from crewai.tools import tool
 
-from multiagent.config import DATA_DIR, TABLE_SUFFIXES, TEXT_SUFFIXES
+from multiagent.config import TABLE_SUFFIXES, TEXT_SUFFIXES, data_files
 from multiagent.tools.files import extract_text
 
 PREVIEW_CHARS = 400
@@ -27,8 +27,8 @@ def _preview(path) -> str:
 def build_catalog() -> str:
     """One short card per file in data/ (type, sheets/columns or text preview) for the router."""
     lines = []
-    for path in sorted(DATA_DIR.iterdir()):
-        if path.is_file() and path.suffix.lower() in TEXT_SUFFIXES | TABLE_SUFFIXES:
+    for path in data_files():
+        if path.suffix.lower() in TEXT_SUFFIXES | TABLE_SUFFIXES:
             lines.append(f"- {path.name}: {_preview(path)}")
     return "\n".join(lines)
 

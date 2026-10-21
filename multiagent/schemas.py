@@ -42,3 +42,15 @@ class RouteResult(BaseModel):
 class ReviewResult(BaseModel):
     approved: bool = Field(description="true, если серьёзных замечаний нет")
     issues: list[str] = Field(default_factory=list, description="Конкретные замечания к отчёту")
+    data_requests: list[str] = Field(
+        default_factory=list,
+        max_length=3,
+        description="До трёх запросов аналитику таблиц: какие данные досчитать (файл, лист, колонки, агрегат)",
+    )
+
+
+class FollowUpResult(BaseModel):
+    findings: list[str] = Field(min_length=1, description="Результат по каждому запросу: числа с пояснением")
+    charts: list[str] = Field(
+        default_factory=list, description="Пути графиков ровно так, как вернул инструмент make_chart"
+    )

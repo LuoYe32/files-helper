@@ -4,7 +4,7 @@ import re
 from crewai import TaskOutput
 from pydantic import BaseModel, ValidationError
 
-from multiagent.config import DATA_DIR
+from multiagent.config import data_files
 from multiagent.guardrails.facts import Facts
 from multiagent.routing.selection import Selection
 from multiagent.schemas import RouteResult
@@ -38,7 +38,7 @@ def json_guardrail(model: type[BaseModel], suffixes: set[str], facts: Facts, sel
     """
 
     def expected_files() -> set[str]:
-        return selection.restrict({p.name for p in DATA_DIR.iterdir() if p.suffix.lower() in suffixes})
+        return selection.restrict({p.name for p in data_files() if p.suffix.lower() in suffixes})
 
     def check(output: TaskOutput):
         parsed, error = _parse(model, output.raw)
@@ -77,7 +77,7 @@ def route_guardrail(selection: Selection):
         if parsed is None:
             return False, error
 
-        existing = {p.name for p in DATA_DIR.iterdir() if p.is_file()}
+        existing = {p.name for p in data_files()}
         unknown = {c.file for c in parsed.files} - existing
         if unknown:
             return False, f"Этих файлов нет в каталоге: {sorted(unknown)}. Выбирай только из каталога."

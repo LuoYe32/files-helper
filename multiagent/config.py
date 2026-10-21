@@ -17,3 +17,8 @@ PRICES = {
     "claude-opus-5-5": (4.00, 20.00),
     "claude-fable-5-1": (10.00, 50.00),
 }
+
+
+def data_files() -> list[Path]:
+    """Files in data/, ignoring hidden and temporary ones (for example Excel lock files like ~$name.xlsx)."""
+    return sorted(p for p in DATA_DIR.iterdir() if p.is_file() and not p.name.startswith((".", "~")))

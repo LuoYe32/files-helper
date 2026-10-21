@@ -37,6 +37,11 @@ def _missing_column(df: pd.DataFrame, *columns: str) -> str | None:
     return None
 
 
+def _filter_rows(df: pd.DataFrame, filter_by: str, filter_value: str) -> pd.DataFrame:
+    """Keep rows where column `filter_by` equals `filter_value`; no filtering when `filter_by` is empty."""
+    return df[df[filter_by].astype(str) == filter_value] if filter_by else df
+
+
 @tool("describe_table")
 @recorded
 def describe_table(file_name: str, sheet: str = "") -> str:
@@ -56,13 +61,25 @@ def describe_table(file_name: str, sheet: str = "") -> str:
 
 @tool("group_table")
 @recorded
-def group_table(file_name: str, group_by: str, value_column: str, agg: str = "sum", sheet: str = "") -> str:
-    """Group by `group_by` and aggregate `value_column` with agg: sum, mean, count, min or max."""
+def group_table(
+    file_name: str,
+    group_by: str,
+    value_column: str,
+    agg: str = "sum",
+    sheet: str = "",
+    filter_by: str = "",
+    filter_value: str = "",
+) -> str:
+    """Group by `group_by` and aggregate `value_column` with agg: sum, mean, count, min or max.
+    Optionally keep only rows where column filter_by equals filter_value, e.g. monthly values for one city."""
     if agg not in {"sum", "mean", "count", "min", "max"}:
         return "agg должен быть одним из: sum, mean, count, min, max"
     df = _load(file_name, sheet)
-    if error := _missing_column(df, group_by, value_column):
+    if error := _missing_column(df, group_by, value_column, *([filter_by] if filter_by else [])):
         return error
+    df = _filter_rows(df, filter_by, filter_value)
+    if df.empty:
+        return f"После фильтра {filter_by}={filter_value} строк не осталось"
     return df.groupby(group_by)[value_column].agg(agg).sort_values(ascending=False).to_string()
 
 

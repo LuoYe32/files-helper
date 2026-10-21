@@ -4,13 +4,13 @@ from crewai.tools import tool
 from docx import Document
 from pypdf import PdfReader
 
-from multiagent.config import DATA_DIR, MAX_CHARS, TEXT_SUFFIXES
+from multiagent.config import DATA_DIR, MAX_CHARS, TEXT_SUFFIXES, data_files
 from multiagent.tools.recording import recorded
 
 
 def _safe_path(name: str) -> Path:
     """Resolve `name` inside data/, rejecting path traversal and missing files."""
-    path = (DATA_DIR / name).resolve()
+    path = (DATA_DIR / name.removeprefix("data/")).resolve()
     if not path.is_relative_to(DATA_DIR):
         raise ValueError("Доступ разрешён только к файлам в папке data/")
     if not path.is_file():
@@ -37,8 +37,7 @@ def list_files() -> str:
     """List files in the data/ folder with type and size."""
     rows = [
         f"{p.name} ({p.suffix.lstrip('.')}, {p.stat().st_size} байт)"
-        for p in sorted(DATA_DIR.iterdir())
-        if p.is_file()
+        for p in data_files()
     ]
     return "\n".join(rows) or "Папка пуста"
 
